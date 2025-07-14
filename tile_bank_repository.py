@@ -84,7 +84,7 @@ class TileBankRepository(BaseRepository):
                                    array: np.ndarray, 
                                    satellite_name: str, 
                                    date_origin: datetime | str,
-                                   exists_ok: bool = False):
+                                   exists_ok: bool = False) -> pd.DataFrame:
         """Create a new tile record in the database from a numpy array
 
         Args:
@@ -92,6 +92,9 @@ class TileBankRepository(BaseRepository):
             satellite_name (str): The name of the satellite
             date_origin (datetime): The date of the origin of the tile (YYYY-MM-DD)
             exists_ok (bool): If True, the function will not raise an error if the tile already exists
+            
+        Returns:
+            pd.DataFrame: The tile record
         """
         
         # Save the array to a file
@@ -99,7 +102,9 @@ class TileBankRepository(BaseRepository):
         np.save(file_path, array)
         
         # Add the tile
-        return self.add_single_tile_from_path(file_path, satellite_name, date_origin)
+        record = self.add_single_tile_from_path(file_path, satellite_name, date_origin, exists_ok=exists_ok)
+        
+        return record
     
     def add_timeseries_from_path(self, 
                                   paths: list[str], 
@@ -150,12 +155,70 @@ class TileBankRepository(BaseRepository):
         
         return timeseries
     
-    def add_timeseries_from_array(self, data: np.ndarray, satellite_name: str, date_origins: list[datetime | str]):
+    def add_timeseries_from_array(self, data: np.ndarray, satellite_name: str, date_origins: list[datetime | str], exists_ok: bool = False):
+        """This function accepts a 4d numpy array of shape (time, bands, height, width).
+        First, it will split the array into a list of 3d arrays, each representing a single time step.
+        Then, it will add each time step to the database as a separate tile.
+        Finally, it will create a new timeseries record and link the tiles to it.
+
+        Args:
+            data (np.ndarray): The 4d numpy array of shape (time, bands, height, width)
+            satellite_name (str): The name of the satellite
+            date_origins (list[datetime  |  str]): The list of dates of the origin of the tiles (YYYY-MM-DD)
+            exists_ok (bool): If True, the function will not raise an error if a tile in the timeseries already exists
+            
+        Raises:
+            ValueError: If the data is not a 4d numpy array
+            ValueError: If the data is not a 4d numpy array of shape (time, bands, height, width)
+            ValueError: If the number of date origins is not equal to the number of time steps
+            ValueError: If the date origins are not in the correct format
+            ValueError: If the satellite name is not found
+            ValueError: If the timeseries already exists and exists_ok is False
+        """
         raise NotImplementedError("Not implemented yet")
     
     def add_multimodal_from_path(self, high_res_path: str, timeseries_paths: list[str], satellite_name: str, date_origin: datetime | str):
+        """This function accepts a path to a high resolution image and a list of paths to the individual tiles of a timeseries.
+        It will add the high resolution image to the database as a separate tile.
+        Then, it will add each tile of the timeseries to the database as a separate tile.
+        Next, it will create a new timeseries record and link the tiles to it.
+        Finally, it will create a new multimodal record and link the high resolution tile and the timeseries to it.
+        
+        Args:
+            high_res_path (str): The path to the high resolution image
+            timeseries_paths (list[str]): The list of paths to the individual tiles of the timeseries
+            satellite_name (str): The name of the satellite
+            date_origin (datetime | str): The date of the origin of the tiles (YYYY-MM-DD)
+            
+        Raises:
+            ValueError: If the high resolution image does not exist
+            ValueError: If the timeseries paths do not exist
+            ValueError: If the satellite name is not found
+            ValueError: If the timeseries already exists and exists_ok is False
+        """
         raise NotImplementedError("Not implemented yet")
     
     def add_multimodal_from_array(self, high_res_data: np.ndarray, timeseries_data: np.ndarray, satellite_name: str, date_origin: datetime | str):
+        """This function accepts a 3D numpy array of shape (bands, height, width) for the high resolution image and a 4d numpy array of shape (time, bands, height, width) for the timeseries.
+        It will add the high resolution image to the database as a separate tile and save it to a file.
+        Then, it will split the timeseries array into a list of 3D arrays, each representing a single time step.
+        Then, it will add each time step to the database as a separate tile and save it to a file.
+        Next, it will create a new timeseries record and link the tiles to it.
+        Finally, it will create a new multimodal record and link the high resolution tile and the timeseries to it.
+        
+        Args:
+            high_res_data (np.ndarray): The 3D numpy array of shape (bands, height, width) for the high resolution image
+            timeseries_data (np.ndarray): The 4d numpy array of shape (time, bands, height, width) for the timeseries
+            satellite_name (str): The name of the satellite
+            date_origin (datetime | str): The date of the origin of the tiles (YYYY-MM-DD)
+            
+        Raises:
+            ValueError: If the high resolution data is not a 3d numpy array
+            ValueError: If the timeseries data is not a 4d numpy array
+            ValueError: If the number of date origins is not equal to the number of time steps
+            ValueError: If the date origins are not in the correct format
+            ValueError: If the satellite name is not found
+            ValueError: If the timeseries already exists and exists_ok is False
+            """
         raise NotImplementedError("Not implemented yet")
     
