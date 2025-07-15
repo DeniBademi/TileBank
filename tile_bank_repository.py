@@ -139,6 +139,8 @@ class TileBankRepository(BaseRepository):
         timeseries = self.add_record("timeseries", {
             "start_date": date_origins[0],
             "end_date": date_origins[-1]
+            "start_date": date_origins[0],
+            "end_date": date_origins[-1]
         })
         
         # link the tiles to the timeseries
