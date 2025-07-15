@@ -32,9 +32,9 @@ class TileBankRepository(BaseRepository):
         for row in satellites_data:
             self.add_record("satellite", {"name": row[0], "resolution_cm": row[1], "type": row[2]})
         
-    def parse_date_origin(self, date_origin: datetime | str) -> datetime:
+    def parse_date_origin(self, date_origin: datetime | str) -> str:
         if isinstance(date_origin, datetime):
-            return date_origin
+            return date_origin.strftime("%Y-%m-%d")
         else:
             # assert date_origin is a string in the format YYYY-MM-DD
             import re
@@ -106,7 +106,7 @@ class TileBankRepository(BaseRepository):
         
         return record
     
-    def add_timeseries_from_path(self, 
+    def add_timeseries_from_path(self,
                                   paths: list[str], 
                                   satellite_name: str, 
                                   date_origins: list[datetime | str]):
@@ -129,9 +129,7 @@ class TileBankRepository(BaseRepository):
         for i, date_origin in enumerate(date_origins):
             date_origins[i] = self.parse_date_origin(date_origin)
 
-        # find the start and end date of the time series
-        start_date = min(date_origins)
-        end_date = max(date_origins)
+        date_origins.sort()
         
         # add all the tiles to the database
         tiles = []
@@ -141,8 +139,8 @@ class TileBankRepository(BaseRepository):
             
         # create a new timeseries record
         timeseries = self.add_record("timeseries", {
-            "start_date": start_date.strftime("%Y-%m-%d"),
-            "end_date": end_date.strftime("%Y-%m-%d")
+            "start_date": date_origins[0].strftime("%Y-%m-%d"),
+            "end_date": date_origins[-1].strftime("%Y-%m-%d")
         })
         
         # link the tiles to the timeseries
@@ -154,7 +152,10 @@ class TileBankRepository(BaseRepository):
         
         return timeseries
     
-    def add_timeseries_from_array(self, data: np.ndarray, satellite_name: str, date_origins: list[datetime | str], exists_ok: bool = False):
+    def add_timeseries_from_array(self, 
+                                  data: np.ndarray,
+                                  satellite_name: str, 
+                                  date_origins: list[datetime | str]):
         """This function accepts a 4d numpy array of shape (time, bands, height, width).
         First, it will split the array into a list of 3d arrays, each representing a single time step.
         Then, it will add each time step to the database as a separate tile.
@@ -172,9 +173,33 @@ class TileBankRepository(BaseRepository):
             ValueError: If the number of date origins is not equal to the number of time steps
             ValueError: If the date origins are not in the correct format
             ValueError: If the satellite name is not found
-            ValueError: If the timeseries already exists and exists_ok is False
         """
-        raise NotImplementedError("Not implemented yet")
+        
+        assert len(data.shape) == 4, "Data must be a 4d numpy array"
+        assert data.shape[-1] == data.shape[-2], "Data must be a square array"
+        
+        for date_origin in date_origins:
+            date_origin = self.parse_date_origin(date_origin)
+            
+        satellite_record = self.find("satellite", name=satellite_name)
+        
+        date_origins.sort()
+        
+        timeseries_record = self.add_record("timeseries", {
+            "start_date": date_origins[0].strftime("%Y-%m-%d"),
+            "end_date": date_origins[-1].strftime("%Y-%m-%d")
+        })
+        
+        timestep_paths = []
+        for i in range(data.shape[0]):            
+            tile_record = self.add_single_tile_from_array(data[i], satellite_name, date_origins[i])
+            timestep_paths.append(tile_record['path'].values[0])
+        
+        self.add_timeseries_from_path(timestep_paths, satellite_name, date_origins)
+        
+        return timeseries_record
+        
+        
     
     def add_multimodal_from_path(self, high_res_path: str, timeseries_paths: list[str], satellite_name: str, date_origin: datetime | str):
         """This function accepts a path to a high resolution image and a list of paths to the individual tiles of a timeseries.
