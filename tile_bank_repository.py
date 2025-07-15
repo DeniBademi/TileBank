@@ -31,6 +31,17 @@ class TileBankRepository(BaseRepository):
         
         for row in satellites_data:
             self.add_record("satellite", {"name": row[0], "resolution_cm": row[1], "type": row[2]})
+        
+    def parse_date_origin(self, date_origin: datetime | str) -> datetime:
+        if isinstance(date_origin, datetime):
+            return date_origin
+        else:
+            # assert date_origin is a string in the format YYYY-MM-DD
+            import re
+            if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_origin):
+                raise ValueError(f"Date origin must be in the format YYYY-MM-DD, got {date_origin}")
+            return datetime.strptime(date_origin, "%Y-%m-%d")
+        
             
     def add_single_tile_from_path(self, 
                                   path: str, 
@@ -50,20 +61,9 @@ class TileBankRepository(BaseRepository):
         """
         
         # Get the satellite id
-        satellite = self.sql(f"""
-            SELECT id FROM satellite WHERE name = '{satellite_name}'
-        """).fetchdf()
+        satellite = self.find("satellite", name=satellite_name)
         
-        if satellite.empty:
-            raise ValueError(f"Satellite {satellite_name} not found")
-        
-        if isinstance(date_origin, datetime):
-            date_origin = date_origin.strftime("%Y-%m-%d")
-        else:
-            # assert date_origin is a string in the format YYYY-MM-DD
-            import re
-            if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_origin):
-                raise ValueError(f"Date origin must be in the format YYYY-MM-DD, got {date_origin}")
+        date_origin = self.parse_date_origin(date_origin)
         
         # Verify that the file exists
         if not os.path.exists(path):
@@ -127,8 +127,7 @@ class TileBankRepository(BaseRepository):
         
         # assert that the date origins are in the correct format
         for i, date_origin in enumerate(date_origins):
-            if not isinstance(date_origin, datetime):
-                date_origins[i] = datetime.strptime(date_origin, "%Y-%m-%d")
+            date_origins[i] = self.parse_date_origin(date_origin)
 
         # find the start and end date of the time series
         start_date = min(date_origins)
