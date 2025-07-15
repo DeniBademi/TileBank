@@ -1,7 +1,18 @@
+"""
+Database schema and initialization functions.
+"""
+
 import duckdb
 
 def create_database(db_path: str) -> duckdb.DuckDBPyConnection:
+    """Create the TileBank database schema.
     
+    Args:
+        db_path (str): Path where to create the database
+        
+    Returns:
+        duckdb.DuckDBPyConnection: Database connection
+    """
     conn = duckdb.connect(db_path)
     
     # Create satellite_type enum
@@ -128,25 +139,29 @@ def create_database(db_path: str) -> duckdb.DuckDBPyConnection:
         """)
 
     return conn
-        
-        
+
 def seed_data(db_path: str):
+    """Seed the database with initial data.
+    
+    Args:
+        db_path (str): Path to the database
+    """
     conn = duckdb.connect(db_path)
-        
+    
     # Insert sample satellite data
     satellites_data = [
-            ('Sentinel-2', 100, 'optic'),
-            ('Sentinel-1', 100, 'radar'),
-            ('Pleiades-50', 50, 'optic'),
-            ('PleiadesNEO', 30, 'optic'),
-            ('ortophoto25', 25, 'optic'),
-        ]
-        
+        ('Sentinel-2', 100, 'optic'),
+        ('Sentinel-1', 100, 'radar'),
+        ('Pleiades-50', 50, 'optic'),
+        ('PleiadesNEO', 30, 'optic'),
+        ('ortophoto25', 25, 'optic'),
+    ]
+    
     for row in satellites_data:
-        record = conn.sql(f"""
-                INSERT INTO satellite (name, resolution_cm, type)
-                VALUES ('{row[0]}', {row[1]}, '{row[2]}')
-                RETURNING *
-            """).fetchdf()
-        
-    conn.close()
+        conn.sql(f"""
+            INSERT INTO satellite (name, resolution_cm, type)
+            VALUES ('{row[0]}', {row[1]}, '{row[2]}')
+            RETURNING *
+        """).fetchdf()
+    
+    conn.close() 
