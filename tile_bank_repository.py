@@ -139,8 +139,8 @@ class TileBankRepository(BaseRepository):
             
         # create a new timeseries record
         timeseries = self.add_record("timeseries", {
-            "start_date": date_origins[0].strftime("%Y-%m-%d"),
-            "end_date": date_origins[-1].strftime("%Y-%m-%d")
+            "start_date": date_origins[0],
+            "end_date": date_origins[-1]
         })
         
         # link the tiles to the timeseries
@@ -186,8 +186,8 @@ class TileBankRepository(BaseRepository):
         date_origins.sort()
         
         timeseries_record = self.add_record("timeseries", {
-            "start_date": date_origins[0].strftime("%Y-%m-%d"),
-            "end_date": date_origins[-1].strftime("%Y-%m-%d")
+            "start_date": date_origins[0],
+            "end_date": date_origins[-1]
         })
         
         timestep_paths = []
@@ -201,7 +201,7 @@ class TileBankRepository(BaseRepository):
         
         
     
-    def add_multimodal_from_path(self, high_res_path: str, timeseries_paths: list[str], satellite_name: str, date_origin: datetime | str):
+    def add_multimodal_from_path(self, high_res_path: str, timeseries_paths: list[str], satellite_name: str, date_origin: datetime | str, date_origin_timeseries:list[ datetime | str]):
         """This function accepts a path to a high resolution image and a list of paths to the individual tiles of a timeseries.
         It will add the high resolution image to the database as a separate tile.
         Then, it will add each tile of the timeseries to the database as a separate tile.
@@ -220,9 +220,22 @@ class TileBankRepository(BaseRepository):
             ValueError: If the satellite name is not found
             ValueError: If the timeseries already exists and exists_ok is False
         """
-        raise NotImplementedError("Not implemented yet")
+
+        tile_record = self.add_single_tile_from_path(high_res_path, satellite_name, date_origin, False)
+
+        timeseries_record = self.add_timeseries_from_path(timeseries_paths, satellite_name, date_origin_timeseries)
+
+
+        multimodal_record = self.add_record("multimodal", {
+
+            "timeseries_id": timeseries_record['id'].values[0],
+            "high_resolution_id": tile_record['id'].values[0]
+            
+        })
+
+        return multimodal_record
     
-    def add_multimodal_from_array(self, high_res_data: np.ndarray, timeseries_data: np.ndarray, satellite_name: str, date_origin: datetime | str):
+    def add_multimodal_from_array(self, high_res_data: np.ndarray, timeseries_data: np.ndarray, satellite_name: str, date_origin: datetime | str, date_origin_timeseries:list[ datetime | str]):
         """This function accepts a 3D numpy array of shape (bands, height, width) for the high resolution image and a 4d numpy array of shape (time, bands, height, width) for the timeseries.
         It will add the high resolution image to the database as a separate tile and save it to a file.
         Then, it will split the timeseries array into a list of 3D arrays, each representing a single time step.
@@ -244,5 +257,19 @@ class TileBankRepository(BaseRepository):
             ValueError: If the satellite name is not found
             ValueError: If the timeseries already exists and exists_ok is False
             """
-        raise NotImplementedError("Not implemented yet")
+        
+        tile_record = self.add_single_tile_from_array(high_res_data, satellite_name, date_origin)
+        
+
+        timeseries_record = self.add_timeseries_from_array(timeseries_data, satellite_name, date_origin_timeseries)
+
+
+        multimodal_record = self.add_record("multimodal", {
+
+            "timeseries_id": timeseries_record['id'].values[0],
+            "high_resolution_id": tile_record['id'].values[0]
+            
+        })
+
+        return multimodal_record
     
