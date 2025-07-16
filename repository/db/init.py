@@ -102,48 +102,7 @@ def create_database(db_path: str) -> duckdb.DuckDBPyConnection:
             )
         """)
 
-    # Create tag table
-    conn.sql("""CREATE SEQUENCE seq_tag_id START 1;""")
-    conn.sql("""
-        CREATE TABLE IF NOT EXISTS tag (
-            id INTEGER PRIMARY KEY DEFAULT nextval('seq_tag_id'),
-            key VARCHAR(100) NOT NULL,
-            value VARCHAR(500) NOT NULL,
-            category VARCHAR(50) NULL,
-            date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(key, value, category)
-        )
-    """)
 
-    # Create junction table for tile-tag relationship
-    conn.sql("""CREATE SEQUENCE seq_tile_tag_id START 1;""")
-    conn.sql("""
-        CREATE TABLE IF NOT EXISTS tile_tag (
-            id INTEGER PRIMARY KEY DEFAULT nextval('seq_tile_tag_id'),
-            tile_id INTEGER NOT NULL REFERENCES tile(id) ON DELETE CASCADE,
-            tag_id INTEGER NOT NULL REFERENCES tag(id) ON DELETE CASCADE,
-            date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(tile_id, tag_id)
-        )
-    """)
-
-    # Create junction table for mask-tag relationship
-    conn.sql("""CREATE SEQUENCE seq_mask_tag_id START 1;""")
-    conn.sql("""
-        CREATE TABLE IF NOT EXISTS mask_tag (
-            id INTEGER PRIMARY KEY DEFAULT nextval('seq_mask_tag_id'),
-            mask_id INTEGER NOT NULL REFERENCES mask(id) ON DELETE CASCADE,
-            tag_id INTEGER NOT NULL REFERENCES tag(id) ON DELETE CASCADE,
-            date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(mask_id, tag_id)
-        )
-    """)
-
-    # Create indices for faster tag lookups
-    conn.sql("""
-        CREATE INDEX idx_tag_key ON tag(key);
-        CREATE INDEX idx_tag_category ON tag(category);
-    """)
 
     # Create spatial indices
     conn.sql("""

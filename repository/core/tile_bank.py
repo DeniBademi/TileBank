@@ -21,9 +21,14 @@ from ..db.init import create_database, seed_data
 
 class TileBankRepository(BaseRepository):
     def __init__(self, db_path="tile_bank.db", save_dir="."):
+        
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+
         if not os.path.exists(db_path):
             create_database(db_path)
             seed_data(db_path)
+
         super().__init__(db_path)
         
         # Install and load spatial extension
@@ -166,8 +171,6 @@ class TileBankRepository(BaseRepository):
         timeseries = self.add_record("timeseries", {
             "start_date": date_origins[0],
             "end_date": date_origins[-1]
-            "start_date": date_origins[0],
-            "end_date": date_origins[-1]
         })
         
         # link the tiles to the timeseries
@@ -182,7 +185,10 @@ class TileBankRepository(BaseRepository):
     def add_timeseries_from_array(self, 
                                   data: np.ndarray,
                                   satellite_name: str, 
-                                  date_origins: list[datetime | str]) -> pd.DataFrame:
+                                  date_origins: list[datetime | str],
+                                  crs: str,
+                                  transform: tuple,
+                                  file_format: str = 'npy') -> pd.DataFrame:
         """
         Save a timeseries record to the database from a 4d numpy array of shape (time, bands, height, width)
 
@@ -202,9 +208,9 @@ class TileBankRepository(BaseRepository):
 
         tile_ids = []
         for i in range(data.shape[0]):            
-            tile_record = self.add_single_tile_from_array(data[i], satellite_name, date_origins[i])
+            tile_record = self.add_single_tile_from_array(data[i], satellite_name, date_origins[i],crs,transform,False,file_format)
             tile_ids.append(tile_record['id'].values[0])
-        
+
         timeseries_record = self.add_record("timeseries", {
             "start_date": date_origins[0],
             "end_date": date_origins[-1]
@@ -253,7 +259,10 @@ class TileBankRepository(BaseRepository):
                                   timeseries_data: np.ndarray, 
                                   satellite_name: str, 
                                   date_origin: datetime | str, 
-                                  date_origin_timeseries:list[ datetime | str]) -> pd.DataFrame:
+                                  date_origin_timeseries:list[ datetime | str],
+                                  crs: str,
+                                  transform: tuple,
+                                  file_format: str = 'npy') -> pd.DataFrame:
         """Save a multimodal record (high resolution image and timeseries) to the database
         Args:
             high_res_data (np.ndarray): The 3D numpy array of shape (bands, height, width) for the high resolution image
@@ -269,9 +278,9 @@ class TileBankRepository(BaseRepository):
         assert len(high_res_data.shape) == 3, "High resolution data must be a 3D numpy array"
         assert len(timeseries_data.shape) == 4, "Timeseries data must be a 4D numpy array"
         
-        tile_record = self.add_single_tile_from_array(high_res_data, satellite_name, date_origin)
+        tile_record = self.add_single_tile_from_array(high_res_data, satellite_name, date_origin, crs, transform, False, file_format)
         
-        timeseries_record = self.add_timeseries_from_array(timeseries_data, satellite_name, date_origin_timeseries)
+        timeseries_record = self.add_timeseries_from_array(timeseries_data, satellite_name, date_origin_timeseries, crs, transform, file_format)
 
         multimodal_record = self.add_record("multimodal", {
             "timeseries_id": timeseries_record['id'].values[0],
