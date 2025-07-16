@@ -220,4 +220,4 @@ class BaseRepository:
         """
         Execute a query
         """
-        return self.conn.sql(query)
+        return self.conn.sql(query) 
