@@ -20,8 +20,7 @@ def transactional(func):
             self.conn.sql("BEGIN TRANSACTION;")
             self._in_transaction = True
         try:
-            result = func(self, *args, **kwargs)
-            return result
+            return func(self, *args, **kwargs)
         except Exception as e:
             self.abort_changes()
             raise e
@@ -188,7 +187,25 @@ class BaseRepository:
             DELETE FROM {table} WHERE id = {id}
         """)
         return True
-        
+    
+    @transactional
+    @check_table
+    def create_colomn_in_table(self, table: str, new_colomn_name: str, data_type: str): 
+
+        if data_type == "str":
+            data_type = "varchar(255)"
+        if data_type == "int":
+            data_type = "INT"
+        if data_type == "float":
+            data_type = "FLOAT"
+        if data_type == "bool":
+            data_type = "BOOL"
+
+        self.conn.sql(f"""
+                ALTER TABLE {table}
+                ADD {new_colomn_name} {data_type};
+            """)
+
     @transactional
     def execute_query(self, query: str) -> pd.DataFrame:
         """
@@ -221,3 +238,6 @@ class BaseRepository:
         Execute a query
         """
         return self.conn.sql(query) 
+    
+    
+   

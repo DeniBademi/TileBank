@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+from datetime import datetime, timedelta
 from rasterio.transform import Affine
 from repository.core.tile_bank import TileBankRepository
 @pytest.fixture(scope="session", autouse=True)
@@ -39,6 +40,18 @@ def test_assert_tyle_arrayNot3d():
         crs="EPSG:32635",
         transform=tuple(transform)[:6],
         file_format="tif"
+        )
+
+
+def test_tyle_futureDatetime():
+    with pytest.raises(AssertionError):
+        repo.add_single_tile_from_array(
+        array=dummy_data,
+        satellite_name="Sentinel-2",
+        date_origin= datetime.now()+timedelta(days=2),
+        crs="EPSG:32635",
+        transform=tuple(transform)[:6],
+        file_format="gif"
         )
 
 

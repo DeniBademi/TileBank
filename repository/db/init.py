@@ -66,6 +66,37 @@ def create_database(db_path: str) -> duckdb.DuckDBPyConnection:
             date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
     """)
+
+    # Table to store tagtype information
+    conn.sql("""CREATE SEQUENCE seq_tagtype_id START 1;""")
+    conn.sql("""
+            CREATE TABLE IF NOT EXISTS tagtype (
+                id INTEGER PRIMARY KEY DEFAULT nextval('seq_tagtype_id'),
+                name VARCHAR(50) NOT NULL,
+                description VARCHAR(200) NOT NULL
+            )
+        """)
+    
+    # Table to store tag information
+    conn.sql("""CREATE SEQUENCE seq_tag_id START 1;""")
+    conn.sql("""
+            CREATE TABLE IF NOT EXISTS tag (
+                id INTEGER PRIMARY KEY DEFAULT nextval('seq_tag_id'),
+                name VARCHAR(50) NOT NULL,
+                tagtype_id INTEGER NOT NULL REFERENCES tagtype(id)
+            )
+        """)
+    
+    # Table to store tile tag link information
+    conn.sql("""CREATE SEQUENCE seq_tile_tag_link_id START 1;""")
+    conn.sql("""
+        CREATE TABLE IF NOT EXISTS tile_tag_link (
+            id INTEGER PRIMARY KEY DEFAULT nextval('seq_tile_tag_link_id'),
+            tag_id INTEGER NOT NULL REFERENCES tag(id),
+            tile_id INTEGER NOT NULL REFERENCES tile(id),
+            date_created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     
     # Create mask_task_type enum
     conn.sql("""

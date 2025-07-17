@@ -584,14 +584,19 @@ class TileBankRepository(BaseRepository):
         Returns:
             str: Date in YYYY-MM-DD format
         """
+
         if isinstance(date_origin, datetime):
-            return date_origin.strftime("%Y-%m-%d")
+            output= date_origin.strftime("%Y-%m-%d")
         elif isinstance(date_origin, str):
             # assert date_origin is a string in the format YYYY-MM-DD
             import re
             if not re.match(r'^\d{4}-\d{2}-\d{2}$', date_origin):
                 raise ValueError(f"Date origin must be in the format YYYY-MM-DD, got {date_origin}")
-            return date_origin 
+            output = date_origin
+        
+        assert output <= datetime.now().strftime("%Y-%m-%d"), "Date and time is in future"
+
+        return output 
         
     def _cleanup_files(self):
         """Delete all files created during the current transaction."""
