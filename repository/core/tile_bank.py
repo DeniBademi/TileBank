@@ -12,21 +12,21 @@ from duckdb import ConstraintException
 import json
 from shapely.geometry import box, mapping, shape
 
-
-from ..spatial.utils import get_raster_spatial_info, get_array_spatial_info, create_patch_transform
-from ..io.array_writer import save_array
-from .base import BaseRepository
-from ..db.init import create_database, seed_data
-
+from repository.spatial.utils import get_raster_spatial_info, get_array_spatial_info, create_patch_transform
+from repository.io.array_writer import save_array
+from repository.core.base import BaseRepository
+from repository.db.init import create_database, seed_data
+from tqdm import tqdm
+from rasterio.crs import CRS
 
 class TileBankRepository(BaseRepository):
-    def __init__(self, db_path="tile_bank.db", save_dir="."):
+    def __init__(self, db_path="D:/tile_bank.db", save_dir="D:/uploads", default_crs=32635):
         
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
 
         if not os.path.exists(db_path):
-            create_database(db_path)
+            create_database(db_path, verbose=True)
             seed_data(db_path)
 
         super().__init__(db_path)
@@ -37,6 +37,7 @@ class TileBankRepository(BaseRepository):
         
         self.save_dir = save_dir
         self._created_files = set()  # Track files created in current transaction
+        self.default_crs_epsg = default_crs
         
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
@@ -45,8 +46,6 @@ class TileBankRepository(BaseRepository):
         """Track a file that was created during the current transaction."""
         self._created_files.add(filepath)
         
-
-
     def add_single_tile_from_array(self, 
                                 array: np.ndarray, 
                                 satellite_name: str, 
@@ -321,7 +320,8 @@ class TileBankRepository(BaseRepository):
 
         created_tiles = []
         
-        with rasterio.open(raster_path) as src:
+        # Get raster info
+        with rasterio.open(raster_path, mode="r+") as src:
             # Get the total valid area that can be split into patches
             max_height = ((src.height - patch_size) // stride + 1) * stride
             max_width = ((src.width - patch_size) // stride + 1) * stride
@@ -329,9 +329,11 @@ class TileBankRepository(BaseRepository):
             # Calculate base transform
             base_transform = src.transform
             
+            if src.crs is None:
+                src.crs = CRS.from_epsg(self.default_crs_epsg)
+            
             # Iterate through patches
-            from tqdm import tqdm
-            for i in tqdm(range(0, max_height, stride), desc="Creating patches"):
+            for i in tqdm(range(0, max_height, stride), desc=f"Creating input tiles from {os.path.basename(raster_path)}"):
                 for j in range(0, max_width, stride):
                     # Read the patch
                     window = Window(j, i, patch_size, patch_size)
@@ -401,7 +403,14 @@ class TileBankRepository(BaseRepository):
         created_tiles = []
         created_masks = []
         
-        with rasterio.open(raster_path) as src, rasterio.open(mask_path) as mask_src:
+        # Open both raster and mask
+        with rasterio.open(raster_path, mode="r+") as src, rasterio.open(mask_path, mode="r+") as mask_src:
+            
+            if src.crs is None:
+                src.crs = CRS.from_epsg(self.default_crs_epsg)
+            if mask_src.crs is None:
+                mask_src.crs = CRS.from_epsg(self.default_crs_epsg)
+                
             # Verify raster and mask have same dimensions and projection
             assert src.height == mask_src.height and src.width == mask_src.width, \
                 "Raster and mask must have same dimensions"
@@ -431,6 +440,7 @@ class TileBankRepository(BaseRepository):
                     # Calculate new transform for this patch
                     patch_transform = create_patch_transform(base_transform, i, j)
                     
+                    
                     try:
                         # Save the image patch as a tile
                         tile_record = self.add_single_tile_from_array(
@@ -453,14 +463,15 @@ class TileBankRepository(BaseRepository):
                             crs=src.crs.to_string() if file_format == 'tif' else None
                         )
                         
+                        spatial_info = get_array_spatial_info(mask_patch, src.crs.to_string(), tuple(patch_transform)[:6])
+                        
                         mask_record = self.add_record("mask", {
                             "task": task,
                             "path": mask_path,
                             "tile_id": tile_record['id'].values[0],
                             "date_origin": self.parse_date_origin(date_origin),
                             "mask_type": mask_type,
-                            "bounds": tile_record['bounds'],  # Use same bounds as tile
-                            "raster_transform": json.dumps(tuple(patch_transform)[:6])  # Store transform for future reference
+                            **spatial_info
                         })
                         created_masks.append(mask_record)
                         
@@ -490,8 +501,8 @@ class TileBankRepository(BaseRepository):
         
         created_masks = []
         
-        # Read the mask raster to get its spatial information
-        with rasterio.open(mask_path) as mask_src:
+        # Open mask
+        with rasterio.open(mask_path, mode="r+") as mask_src:
             # Get the bounds of the mask
             mask_bounds = box(*mask_src.bounds)
             mask_crs = mask_src.crs.to_string()
@@ -516,10 +527,10 @@ class TileBankRepository(BaseRepository):
             from tqdm import tqdm
             for _, tile in tqdm(tiles.iterrows(), desc="Creating tile masks", total=len(tiles)):
                 try:
-                    # Read the tile to get its dimensions and transform
-                    with rasterio.open(tile['path']) as tile_src:
+                    # Read tile data
+                    with open_raster_with_crs(tile['path']) as tile_src:
                         
-                        # Get bounds from the source file instead of the database
+                        # Get bounds from the source file
                         tile_bounds = box(*tile_src.bounds)
                         # Get transform directly from the source file
                         tile_transform = tile_src.transform

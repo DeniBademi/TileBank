@@ -1,6 +1,9 @@
 import duckdb
 
-def create_database(db_path: str) -> duckdb.DuckDBPyConnection:
+def create_database(db_path: str, verbose: bool = False) -> duckdb.DuckDBPyConnection:
+    
+    if verbose:
+        print("Creating new database in path: ", db_path)
     
     conn = duckdb.connect(db_path)
     
@@ -118,8 +121,12 @@ def create_database(db_path: str) -> duckdb.DuckDBPyConnection:
                 mask_type VARCHAR(50) NOT NULL,
                 timeseries_id INTEGER NULL REFERENCES timeseries(id),
                 -- Spatial information (must match parent tile's CRS)
-                bounds GEOMETRY NOT NULL,   -- Polygon representing mask bounds
-                raster_transform VARCHAR(300) NOT NULL  -- Affine transform parameters as JSON
+                crs VARCHAR(50) NOT NULL,  -- Coordinate Reference System (e.g. 'EPSG:4326')
+                bounds GEOMETRY NOT NULL,   -- Polygon representing tile bounds
+                pixel_size_x DOUBLE NOT NULL,  -- Pixel size in CRS units
+                pixel_size_y DOUBLE NOT NULL,
+                width INTEGER NOT NULL,     -- Raster dimensions
+                height INTEGER NOT NULL
             )
         """)
         
@@ -156,7 +163,7 @@ def seed_data(db_path: str):
             ('Sentinel-1', 100, 'radar'),
             ('Pleiades-50', 50, 'optic'),
             ('PleiadesNEO', 30, 'optic'),
-            ('ortophoto25', 25, 'optic'),
+            ('orthophoto', 25, 'optic'),
         ]
         
     for row in satellites_data:

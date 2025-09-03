@@ -194,12 +194,16 @@ class BaseRepository:
 
         if data_type == "str":
             data_type = "varchar(255)"
-        if data_type == "int":
+        elif data_type == "int":
             data_type = "INT"
-        if data_type == "float":
+        elif data_type == "float":
             data_type = "FLOAT"
-        if data_type == "bool":
+        elif data_type == "bool":
             data_type = "BOOL"
+        elif data_type == "datetime":
+            data_type = "TIMESTAMP"
+        else:
+            raise ValueError(f"Invalid data type: {data_type}")
 
         self.conn.sql(f"""
                 ALTER TABLE {table}

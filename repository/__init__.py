@@ -1,3 +1,3 @@
-from .core.tile_bank import TileBankRepository
+from repository.core import TileBankRepository, BaseRepository
 
-__all__ = ['TileBankRepository'] 
+__all__ = ['TileBankRepository', 'BaseRepository'] 
